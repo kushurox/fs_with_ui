@@ -1,23 +1,39 @@
-//! This build script copies the `memory.x` file from the crate root into
-//! a directory where the linker can always find it at build time.
-//! For many projects this is optional, as the linker always searches the
-//! project root directory -- wherever `Cargo.toml` is. However, if you
-//! are using a workspace or have a more complicated build setup, this
-//! build script becomes required. Additionally, by requesting that
-//! Cargo re-run the build script whenever `memory.x` is changed,
-//! updating `memory.x` ensures a rebuild of the application with the
-//! new memory settings.
-//!
-//! The build script also sets the linker flags to tell it which link script to use.
+use std::{env, fs::File, io::Write, path::PathBuf};
 
-use std::env;
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
+#[derive(Clone, Copy, Debug)]
+enum GetOneError {
+    None,
+    Multiple,
+}
+
+trait IteratorExt: Iterator {
+    fn get_one(self) -> Result<Self::Item, GetOneError>;
+}
+
+impl<T: Iterator> IteratorExt for T {
+    fn get_one(mut self) -> Result<Self::Item, GetOneError> {
+        match (self.next(), self.next()) {
+            (Some(res), None) => Ok(res),
+            (None, _) => Err(GetOneError::None),
+            _ => Err(GetOneError::Multiple),
+        }
+    }
+}
 
 fn main() {
-    // Put `memory.x` in our output directory and ensure it's
-    // on the linker search path.
+    let _chip_name = match env::vars()
+        .map(|(a, _)| a)
+        .filter(|x| x.starts_with("CARGO_FEATURE_STM32F4"))
+        .get_one()
+    {
+        Ok(x) => x,
+        Err(GetOneError::None) => panic!("No stm32xx Cargo feature enabled"),
+        Err(GetOneError::Multiple) => panic!("Multiple stm32xx Cargo features enabled"),
+    }
+    .strip_prefix("CARGO_FEATURE_")
+    .unwrap()
+    .to_ascii_lowercase();
+
     let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
     File::create(out.join("memory.x"))
         .unwrap()
