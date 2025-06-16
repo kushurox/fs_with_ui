@@ -83,7 +83,7 @@ fn main() -> ! {
     let streams = StreamsTuple::new(dp.DMA2);
     let stream = streams.3;
 
-    let image_data = include_bytes!("../mute.tga");
+    let image_data = include_bytes!("../test_assets/mute.tga");
     let image_tga = Tga::<Rgb565>::from_slice(image_data).expect("couldn't parse image");
     
     let aso = image_tga.as_raw().image_data();
